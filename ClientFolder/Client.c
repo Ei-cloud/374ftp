@@ -30,14 +30,7 @@
 #define FILE_NAME_SIZE 64
 #define SERV_TCP_PORT 40001 /* server's "well-known" port number */
 
-typedef struct Payload
-{
-     char *data;
-     char *fileName;
-     int fileSize;
-     char opcode;
 
-} Payload;
 
 int getFileSize(char *fileName)
 {
@@ -104,7 +97,6 @@ void put(int sd, char *fileName){
 int main(int argc, char *argv[])
 {
      int sd, n, nr, nw, i = 0, fileSize;
-     Payload pay;
      char host[BUFSIZE], fileName[FILE_NAME_SIZE];
      //unsigned char *buf;
      struct sockaddr_in ser_addr;
@@ -155,10 +147,7 @@ int main(int argc, char *argv[])
      fgets(userInput, sizeof(userInput), stdin);
      nr = strlen(userInput);
      tokenise(userInput, tokens);
-     printf("TOKENS[0]: %s\n", tokens[0]);
-     printf("TOKENS[1]: %s\n", tokens[1]);
-     
-     printf("FILE NAME: %s\n", fileName);
+
      if(strcmp(tokens[0], "put") == 0){
           write(sd, &putOpcode, sizeof(char));
           put(sd, tokens[1]);

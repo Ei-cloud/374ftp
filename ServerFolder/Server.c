@@ -70,7 +70,7 @@ void daemon_init(void)
 }
 
 void serve_put(int sd){
-      int nr, nw, i=0;
+    int nr, nw, i=0;
     char buf[BUFSIZE];
     char fileName[32];
     int fileSize = 0, fileNameSize = 0;
@@ -86,18 +86,13 @@ void serve_put(int sd){
      int normalFileSize = ntohl(fileSize);
      fileSize = normalFileSize;
      
-     /*Reads file size*/
+     /*Reads name file size*/
      nr = read(sd, fileName, fileNameSize);
      
-
-     printf("FILE NAME IN SERVER IS: %s\n", fileName);
-     printf("FILE NAME SIZE IN SERVER IS: %d\n", fileNameSize);    
-     printf("CONVERTED FILE SIZE IN SERVER IS: %d\n", normalFileSize);
-     
-
+     /*Reads file data*/
      nr = read(sd, buf, fileSize);
      
-
+     /*Writes data to the file*/
      file = fopen(fileName, "wb");
      fwrite(buf, fileSize, sizeof(unsigned char), file);
      fclose(file);
@@ -105,6 +100,8 @@ void serve_put(int sd){
 
 void serve_a_client(int sd){
   char opcode;
+
+  /*Reads OPCODES and runs appropriate functions*/
   while(read(sd, &opcode, sizeof(opcode))){
        printf("OPCODE IS: %c", opcode);
        if(opcode == 'P'){
