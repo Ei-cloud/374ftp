@@ -1,3 +1,11 @@
+#include <stdio.h>
+#include<unistd.h>
+#include<stdlib.h>
+#include<sys/stat.h>
+#include<sys/types.h>
+#include <fcntl.h>
+#include<errno.h>
+
 #include  <unistd.h>
 #include  <stdlib.h>
 #include  <stdio.h>
@@ -11,8 +19,9 @@
 #include  <netinet/in.h> /* struct sockaddr_in, htons(), htonl(), */
                          /* and INADDR_ANY */
 
-#define   BUFSIZE         256
+#define   BUFSIZE         200000
 #define   SERV_TCP_PORT   40001           /* server port no */
+#define   FILE_BLOCK_SIZE   512           /* server port no */
 
 void claim_children()
 {
@@ -23,6 +32,17 @@ void claim_children()
      } 
 }
 
+int read_nbytes(int sd, char *buf, int nbytes)
+{
+	int nr = 1;
+	int n = 0;
+	for (n=0; (n < nbytes) && (nr > 0); n += nr) {
+		if ((nr = read(sd, buf+n, nbytes-n)) < 0){
+			return (nr); /* read error */
+		}
+	}
+	return (n);
+}
 void daemon_init(void)
 {       
      pid_t   pid;
@@ -30,12 +50,13 @@ void daemon_init(void)
 
      if ( (pid = fork()) < 0) {
           perror("fork"); exit(1); 
-     } else if (pid > 0) 
+     } else if (pid > 0){
+          printf("PID: %d\n", pid); 
           exit(0);                  /* parent terminates */
-
+     }
      /* child continues */
      setsid();                      /* become session leader */
-     chdir("/");                    /* change working directory */
+     //chdir("/");                    /* change working directory */
      umask(0);                      /* clear file mode creation mask */
 
      /* catch SIGCHLD to remove zombies from system */
@@ -48,37 +69,55 @@ void daemon_init(void)
     */
 }
 
-
-void serve_a_client(int sd)
-{   int nr, nw;
+void serve_put(int sd){
+      int nr, nw, i=0;
     char buf[BUFSIZE];
+    char fileName[32];
+    int fileSize = 0, fileNameSize = 0;
+    FILE *file;
 
-    while (1){ 
-         /* read data from client */
-          if ((nr = read(sd, buf, sizeof(buf))) <= 0) 
-             exit(0);   /* connection broken down */
 
-         /* send results to client */
-         nw = write(sd, buf, nr);
-    } 
-}  
+     /*Reads file name size*/
+     nr = read(sd, &fileNameSize, sizeof(fileNameSize));
+     fileNameSize = ntohl(fileNameSize);
 
- 
-/*
-void menuDisplay(int sd, int n)  
-{ 
-     char choice; 
+     /*Reads file size*/
+     nr = read(sd, &fileSize, sizeof(fileSize));  
+     int normalFileSize = ntohl(fileSize);
+     fileSize = normalFileSize;
+     
+     /*Reads file size*/
+     nr = read(sd, fileName, fileNameSize);
+     
 
-     n=write(sd, "Enter an option a b c or whatever", sizeof(char)); 
-     if(n<0) { 
-          printf("error writing to Client"); 
-     } 
-     read(sd, &choice, sizeof(BUFSIZE));  
-     scanf("%s" ,&choice); 
-     printf("Client:  %s" ,&choice); 
-} 
-*/ 
+     printf("FILE NAME IN SERVER IS: %s\n", fileName);
+     printf("FILE NAME SIZE IN SERVER IS: %d\n", fileNameSize);    
+     printf("CONVERTED FILE SIZE IN SERVER IS: %d\n", normalFileSize);
+     
 
+     nr = read(sd, buf, fileSize);
+     
+
+     file = fopen(fileName, "wb");
+     fwrite(buf, fileSize, sizeof(unsigned char), file);
+     fclose(file);
+}
+
+void serve_a_client(int sd){
+  char opcode;
+  while(read(sd, &opcode, sizeof(opcode))){
+       printf("OPCODE IS: %c", opcode);
+       if(opcode == 'P'){
+          serve_put(sd);
+       }else if(opcode == 'Q'){
+            break;
+       }
+  }
+  printf("SERVED CLIENT\n");
+  return;
+
+
+}
 int main()
 {
      int sd, nsd, n, cli_addrlen;  pid_t pid;
@@ -120,7 +159,9 @@ int main()
           {
                if (errno == EINTR)   /* if interrupted by SIGCHLD */
                     continue;
+               printf("Knee grow\n");
                perror("server:accept");  
+               
                exit(1);
           } 
 
@@ -135,7 +176,8 @@ int main()
           /* now in child, serve the current client */
           
           close(sd); 
-          //menuDisplay(nsd,n); 
+          //menuDisplay(nsd,n);
           serve_a_client(nsd); 
+          exit(0);
      }
 }
